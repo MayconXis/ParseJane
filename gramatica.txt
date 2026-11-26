@@ -1,0 +1,119 @@
+ESPECIFICACAO DA LINGUAGEM REDJOHN
+Analisador sintatico - POO I - IFG Campus Inhumas
+Maycon Douglas, Felype de Moura, Maria Eduarda Mendonca
+
+
+1. CATEGORIAS DE PALAVRA (o que o Leitor reconhece)
+---------------------------------------------------
+
+PALAVRA   reservadas: CASO ABERTO ENCERRADO pista revela
+                      suspeita alibi arquivada interroga confessou
+NOME      comeca com letra sem acento ou _, depois letra, numero ou _
+          exemplos: provas, mentiras, tempo_total, _x1
+NUMERO    inteiro ou com um ponto decimal: 10, 0, 2.5
+OPERADOR  =  +  -  *  /  >  <  >=  <=  ==  !=
+INVALIDA  qualquer outra coisa (nome com acento, 2provas, @, ...)
+
+
+2. GRAMATICA (EBNF)
+-------------------
+
+caso         -> "CASO ABERTO" { linha } "CASO ENCERRADO"
+
+linha        -> comentario | pista | atribuicao | revela
+              | suspeita | interroga
+
+comentario   -> ":)" (texto livre ate o fim da linha)
+
+pista        -> "pista" NOME "=" expressao
+atribuicao   -> NOME "=" expressao
+revela       -> "revela" expressao
+
+suspeita     -> "suspeita" condicao
+                   { linha }
+                [ "alibi" { linha } ]
+                "arquivada"
+
+interroga    -> "interroga" condicao
+                   { linha }
+                "confessou"
+
+condicao     -> expressao opComparacao expressao
+expressao    -> valor { opConta valor }
+valor        -> NOME | NUMERO
+
+opComparacao -> ">" | "<" | ">=" | "<=" | "==" | "!="
+opConta      -> "+" | "-" | "*" | "/"
+
+
+COMO LER
+{ x }   repete zero ou mais vezes
+[ x ]   opcional
+a | b   um ou outro
+"x"     a palavra escrita exatamente assim
+
+
+3. DECISOES DE PROJETO
+----------------------
+
+UM COMANDO POR LINHA
+   Nao tem ponto e virgula. A quebra de linha ja marca o fim do comando,
+   igual no Python.
+
+BLOCO FECHA COM PALAVRA, NAO COM CHAVE
+   suspeita fecha com arquivada, interroga fecha com confessou.
+   O Bash faz a mesma coisa (if ... fi, while ... done).
+   Como cada bloco tem a propria palavra de fechamento, o analisador
+   percebe quando alguem fechou o bloco errado.
+
+CONDICAO SEM PARENTESE
+   "suspeita provas > 2", sem parenteses em volta.
+   A expressao tambem nao tem parenteses, entao nao precisa de recursao
+   pra conferir conta: um laco simples ja resolve.
+
+TUDO SEPARADO POR ESPACO
+   provas = provas + 1, e nao provas=provas+1.
+   Assim o Leitor separa a linha so olhando espaco, sem precisar de regex.
+
+
+4. O QUE O ANALISADOR CONFERE
+-----------------------------
+
+ESTRUTURA
+   - o caso comeca com CASO ABERTO e termina com CASO ENCERRADO
+   - nenhum comando fora dessa moldura
+   - todo bloco aberto precisa fechar
+   - o fechamento precisa combinar com a abertura
+   - alibi so dentro de suspeita, e no maximo um por suspeita
+
+PALAVRAS
+   - nome de pista sem acento e sem comecar com numero
+   - so as palavras reservadas que existem na linguagem
+
+ORDEM
+   - pista precisa de nome, = e valor
+   - atribuicao precisa do = depois do nome
+   - a conta alterna valor e operador, e nao termina em operador
+   - a condicao tem uma comparacao, com expressao dos dois lados
+
+O analisador NAO calcula nada e NAO confere se a pista foi declarada antes
+nem se o tipo bate. Isso seria analise semantica, que nao faz parte do trabalho.
+
+
+5. EXEMPLO COMPLETO
+-------------------
+
+CASO ABERTO
+:) interrogatorio do suspeito
+pista mentiras = 3
+pista provas = 0
+interroga mentiras > 0
+    mentiras = mentiras - 1
+    provas = provas + 1
+confessou
+suspeita provas >= 3
+    revela provas
+alibi
+    revela 0
+arquivada
+CASO ENCERRADO
